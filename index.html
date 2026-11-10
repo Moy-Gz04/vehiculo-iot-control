@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#05070C">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Control Excavadora IoT</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%23D9DDE4%22/%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%228%22 fill=%22%232250D9%22/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+  <link rel="stylesheet" href="css/app.css?v=1">
+</head>
+<body data-pantalla="login" data-control="rc" data-orient="h">
+
+  <!-- ===================== INDICADORES (3 independientes) ===================== -->
+  <div class="estados" aria-label="Estado de las conexiones">
+    <span class="estado" id="est-ws" data-corto="WSS" data-nivel="mal" role="status" aria-live="polite">
+      <i aria-hidden="true"></i><b>WebSocket WSS</b><span class="estado-txt">Desconectado</span>
+    </span>
+    <span class="estado" id="est-api" data-corto="AWS" data-nivel="espera" role="status" aria-live="polite">
+      <i aria-hidden="true"></i><b>Servidor AWS · API</b><span class="estado-txt">Comprobando</span>
+    </span>
+    <span class="estado" id="est-rds" data-corto="RDS" data-nivel="neutro" role="status" aria-live="polite">
+      <i aria-hidden="true"></i><b>Amazon RDS</b><span class="estado-txt">Sin verificar</span>
+    </span>
+  </div>
+
+  <!-- ===================== LOGIN ===================== -->
+  <section class="pantalla login" id="pantalla-login" aria-labelledby="login-titulo">
+    <form class="login-tarjeta" id="form-login" autocomplete="off">
+      <div class="login-marca">
+        <span class="login-logo" aria-hidden="true"><i></i></span>
+        <div>
+          <h1 id="login-titulo">Excavadora IoT</h1>
+          <p>Centro de control remoto</p>
+        </div>
+      </div>
+      <label class="campo" for="login-clave">
+        <span>Clave de acceso</span>
+        <input id="login-clave" type="password" placeholder="X-API-Key" required autocomplete="current-password">
+      </label>
+      <label class="campo" for="login-origen">
+        <span>Nombre del operador</span>
+        <input id="login-origen" type="text" maxlength="30" placeholder="WEB-CONTROL">
+      </label>
+      <p class="login-error" id="login-error" role="alert"></p>
+      <button type="submit" class="btn-azul" id="login-entrar">Entrar</button>
+      <p class="login-nota">La clave es la variable <code>API_KEY</code> del servidor. Se guarda solo en este dispositivo.</p>
+    </form>
+  </section>
+
+  <!-- ===================== SELECTOR ===================== -->
+  <section class="pantalla selector" id="pantalla-selector" aria-labelledby="sel-titulo">
+    <header class="selector-cab">
+      <h1 id="sel-titulo">Elige tu control</h1>
+      <button type="button" class="btn-texto" data-accion="salir">Cerrar sesión</button>
+    </header>
+    <div class="selector-opciones">
+      <button type="button" class="opcion" data-elegir="rc">
+        <span class="mini mini-rc" aria-hidden="true"><i class="ant"></i><i class="pad"></i><i class="pad d"></i><i class="pant"></i></span>
+        <strong>RC Clásico</strong>
+        <span class="opcion-modo">Un pulso</span>
+        <p>Tocas un botón y la excavadora sigue moviéndose hasta que eliges otra acción o presionas <b>ALTO</b>.</p>
+      </button>
+      <button type="button" class="opcion" data-elegir="pad">
+        <span class="mini mini-pad" aria-hidden="true"><i class="pad"></i><i class="bot"></i><i class="pant"></i></span>
+        <strong>Gamepad</strong>
+        <span class="opcion-modo">Mantener presionado</span>
+        <p>Se mueve solo mientras mantienes el botón presionado; al soltarlo se detiene.</p>
+      </button>
+      <button type="button" class="opcion" data-elegir="joy">
+        <span class="mini mini-joy" aria-hidden="true"><i class="base"></i><i class="perilla"></i></span>
+        <strong>Joystick</strong>
+        <span class="opcion-modo">Arrastrar</span>
+        <p>Arrastra la perilla para avanzar, retroceder o girar; al soltarla vuelve al centro y la excavadora se <b>detiene</b>.</p>
+      </button>
+    </div>
+  </section>
+
+  <!-- ===================== CONTROL ===================== -->
+  <section class="pantalla control" id="pantalla-control" aria-label="Control remoto">
+    <div class="escena" id="escena">
+      <header class="barra">
+        <button type="button" class="chip" data-accion="cambiar" aria-label="Cambiar de control">
+          <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg><span>Controles</span>
+        </button>
+        <label class="chip chip-select" for="vehiculo"><span class="sr">Unidad</span><select id="vehiculo"></select></label>
+        <button type="button" class="chip" data-accion="girar" aria-label="Girar el control">
+          <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5"/></svg><span id="txt-girar">Vertical</span>
+        </button>
+        <button type="button" class="chip" data-accion="hoja" data-tab="demos" aria-label="Rutinas y bitácora">
+          <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Menú</span>
+        </button>
+      </header>
+
+      <div class="remoto" id="remoto">
+        <i class="antena" aria-hidden="true"><b></b></i>
+        <div class="carcasa">
+          <span class="led" id="led" aria-hidden="true"></span>
+          <span class="marca-control" id="marca-control">RC·CLÁSICO</span>
+
+          <!-- Pantalla LCD -->
+          <div class="lcd" id="lcd" aria-live="polite">
+            <div class="lcd-fila"><span id="lcd-enlace">SIN ENLACE</span><span id="lcd-modo">PULSO</span></div>
+            <div class="lcd-cmd" id="lcd-cmd">—</div>
+            <div class="lcd-fila"><span id="lcd-info">LISTO</span><span id="lcd-hora">--:--</span></div>
+            <div class="lcd-barra"><i id="lcd-barra"></i></div>
+          </div>
+
+          <!-- Tracción -->
+          <div class="grupo grupo-traccion">
+            <span class="grupo-titulo">Tracción</span>
+            <div class="cruz">
+              <button type="button" class="tecla t-arr" data-cmd="AVANZAR" aria-label="Avanzar"><svg viewBox="0 0 24 24"><path d="M12 5l7 9H5z"/></svg></button>
+              <button type="button" class="tecla t-izq" data-cmd="GIRAR_IZQUIERDA" aria-label="Girar a la izquierda"><svg viewBox="0 0 24 24"><path d="M5 12l9-7v14z"/></svg></button>
+              <span class="cruz-centro" aria-hidden="true"></span>
+              <button type="button" class="tecla t-der" data-cmd="GIRAR_DERECHA" aria-label="Girar a la derecha"><svg viewBox="0 0 24 24"><path d="M19 12l-9 7V5z"/></svg></button>
+              <button type="button" class="tecla t-aba" data-cmd="RETROCEDER" aria-label="Retroceder"><svg viewBox="0 0 24 24"><path d="M12 19l-7-9h14z"/></svg></button>
+            </div>
+            <!-- Joystick: solo en el modo Joystick; reemplaza la cruz de tracción -->
+            <div class="joy" id="joy" aria-label="Joystick de tracción: arrastra para mover, suelta para detener">
+              <span class="joy-flecha f-arr" aria-hidden="true"></span>
+              <span class="joy-flecha f-aba" aria-hidden="true"></span>
+              <span class="joy-flecha f-izq" aria-hidden="true"></span>
+              <span class="joy-flecha f-der" aria-hidden="true"></span>
+              <span class="joy-neutral" aria-hidden="true"></span>
+              <span class="joy-perilla" id="joy-perilla" aria-hidden="true"></span>
+            </div>
+            <span class="joy-dir" id="joy-dir" aria-live="polite">Neutral</span>
+          </div>
+
+          <!-- Centro -->
+          <div class="grupo grupo-centro">
+            <button type="button" class="alto" data-cmd="DETENER" aria-label="Alto: detener todo"><span>ALTO</span></button>
+            <div class="mini-botones">
+              <button type="button" class="pildora" data-accion="hoja" data-tab="demos">DEMO</button>
+              <button type="button" class="pildora" data-accion="hoja" data-tab="historial">LOG</button>
+            </div>
+          </div>
+
+          <!-- Brazo y cabina -->
+          <div class="grupo grupo-brazo">
+            <span class="grupo-titulo">Brazo · Cabina</span>
+            <div class="cruz cruz-brazo">
+              <button type="button" class="tecla b-arr" data-cmd="SUBIR_BRAZO" aria-label="Subir brazo"><svg viewBox="0 0 24 24"><path d="M12 5l7 9H5z"/></svg><em>SUBIR</em></button>
+              <button type="button" class="tecla b-izq" data-cmd="ROTAR_IZQUIERDA" aria-label="Rotar cabina a la izquierda"><svg viewBox="0 0 24 24"><path d="M4 12a7 7 0 0 1 12-5l2 2M18 4v5h-5"/></svg><em>ROT</em></button>
+              <span class="cruz-centro" aria-hidden="true"></span>
+              <button type="button" class="tecla b-der" data-cmd="ROTAR_DERECHA" aria-label="Rotar cabina a la derecha"><svg viewBox="0 0 24 24"><path d="M20 12a7 7 0 0 0-12-5L6 9M6 4v5h5"/></svg><em>ROT</em></button>
+              <button type="button" class="tecla b-aba" data-cmd="BAJAR_BRAZO" aria-label="Bajar brazo"><svg viewBox="0 0 24 24"><path d="M12 19l-7-9h14z"/></svg><em>BAJAR</em></button>
+            </div>
+          </div>
+
+          <!-- Funciones del control físico (2.º 74HC595): un toque corto, como presionar el botón -->
+          <div class="funciones">
+            <button type="button" class="funcion" data-cmd="ENCENDER" data-sostener aria-label="Encender o apagar (mantén presionado para apagar)"><svg viewBox="0 0 24 24"><path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0"/></svg><em>ON/OFF</em></button>
+            <button type="button" class="funcion" data-cmd="LUCES" data-toque aria-label="Luces"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg><em>LED</em></button>
+            <button type="button" class="funcion" data-cmd="SONIDO" data-toque aria-label="Sonido"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg><em>SONIDO</em></button>
+            <button type="button" class="funcion" data-cmd="DEMO_FISICA" data-toque aria-label="Demo del control"><svg viewBox="0 0 24 24"><path d="M7 5v14l12-7z"/></svg><em>DEMO</em></button>
+          </div>
+        </div>
+      </div>
+      <p class="ayuda" id="ayuda">Toca una acción: la excavadora sigue hasta que eliges otra o presionas ALTO.</p>
+    </div>
+  </section>
+
+  <!-- ===================== HOJA: DEMO / HISTORIAL ===================== -->
+  <div class="hoja-fondo" id="hoja-fondo" hidden></div>
+  <aside class="hoja" id="hoja" hidden aria-label="Rutinas y bitácora">
+    <div class="hoja-cab">
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" class="tab" data-tab="demos" aria-selected="true">Rutinas DEMO</button>
+        <button type="button" role="tab" class="tab" data-tab="historial" aria-selected="false">Historial</button>
+        <button type="button" role="tab" class="tab" data-tab="eventos" aria-selected="false">En vivo</button>
+      </div>
+      <button type="button" class="cerrar" data-accion="cerrar-hoja" aria-label="Cerrar">×</button>
+    </div>
+    <div class="hoja-cuerpo">
+      <div data-panel="demos">
+        <button type="button" class="btn-cancelar" id="btn-cancelar" hidden>Cancelar DEMO en curso</button>
+        <ul class="lista" id="lista-demos"></ul>
+      </div>
+      <ol class="lista registros" data-panel="historial" id="lista-historial" hidden></ol>
+      <ol class="lista registros" data-panel="eventos" id="lista-eventos" hidden></ol>
+      <button type="button" class="btn-texto salir-hoja" data-accion="salir">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <div class="aviso" id="aviso" role="status" aria-live="polite"></div>
+
+  <footer class="creditos">Desarrollado por Juan Moisés Gómez Aispuro · 2026</footer>
+  <script src="js/config.js?v=1"></script>
+  <script src="js/app.js?v=1"></script>
+</body>
+</html>
