@@ -1,7 +1,7 @@
 // Control Excavadora IoT: login, selector de control y tres modos de manejo.
 //  - RC Clásico (pulso): un toque -> modo "continuo" (sigue hasta la siguiente orden o ALTO)
-//  - Gamepad (mantener): presionar -> modo "mantener" + aviso /mantener cada 400 ms; soltar -> /soltar
-//  - Joystick (arrastrar): un comando al cambiar de dirección; al soltar -> DETENER
+//  - Gamepad (mantener): presionar -> modo "mantener" + aviso /mantener cada 250 ms; soltar -> /soltar
+//  - DEMO (junto a SONIDO): demo aleatoria infinita en el ESP; sigue hasta tocar otro botón o ALTO
 (() => {
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => document.querySelectorAll(s);
@@ -16,6 +16,7 @@
     comandos: new Map(), demos: [], movsDemo: new Map(),
     ws: null, reintento: 0, ping: null, demoEnCurso: null,
     sostenido: null,   // { nombre, boton, timer } en el gamepad
+    demoAleatoria: false,   // la demo infinita del ESP está corriendo
   };
   const clave = () => guardado('ctl.apikey') || '';
   const origen = () => guardado('ctl.origen') || 'WEB-CONTROL';
@@ -76,15 +77,20 @@
   $$('[data-elegir]').forEach(b => b.addEventListener('click', () => usarControl(b.dataset.elegir)));
   async function usarControl(tipo) {
     B.dataset.control = tipo; guardado('ctl.control', tipo);
-    const MODOS = {
-      rc: ['RC · CLÁSICO', 'PULSO', 'Toca una acción: la excavadora sigue hasta que eliges otra o presionas ALTO.'],
-      pad: ['GAMEPAD', 'MANTENER', 'Mantén presionado un botón para moverte; al soltarlo se detiene.'],
-      joy: ['JOYSTICK', 'JOYSTICK', 'Arrastra la perilla para moverte; al soltarla vuelve al centro y se envía DETENER.'],
-    };
-    const [marca, modo, ayuda] = MODOS[tipo] || MODOS.rc;
-    $('#marca-control').textContent = marca;
-    $('#lcd-modo').textContent = modo;
-    $('#ayuda').textContent = ayuda;
+    if (tipo !== 'voz' && voz.activa) apagarVoz();
+    $('#marca-control').textContent = tipo === 'rc' ? 'RC · CLÁSICO' : 'GAMEPAD';
+    $('#lcd-modo').textContent = tipo === 'rc' ? 'PULSO' : 'MANTENER';
+    $('#ayuda').textContent = tipo === 'rc' ? 'Toca una acción: la excavadora sigue hasta que eliges otra o presionas ALTO.'
+      : 'Mantén presionado un botón para moverte; al soltarlo se detiene.';
+    if (tipo === 'joy') {
+      $('#marca-control').textContent = 'JOYSTICK';
+      $('#lcd-modo').textContent = 'JOYSTICK';
+      $('#ayuda').textContent = 'Arrastra la perilla para moverte; al soltarla vuelve al centro y se envía DETENER.';
+    }
+    if (tipo === 'voz') {
+      robot('reposo');
+      const bv = $('.rp-voz'); if (bv) { bv.setAttribute('aria-pressed', String(voz.conVoz)); bv.textContent = voz.conVoz ? '🔊 VOZ' : '🔇 MUDO'; }
+    }
     if (!guardado('ctl.orient')) B.dataset.orient = esMovil() && innerHeight > innerWidth ? 'v' : 'h';
     actualizarTextoGirar();
     ir('control');
@@ -147,6 +153,7 @@
     vibrar(18);
     boton.classList.add('presionada'); setTimeout(() => boton.classList.remove('presionada'), 140);
     $$('#remoto .activa').forEach(b => b.classList.remove('activa'));
+    terminarDemoAleatoria();
     if (nombre === 'DETENER') { B.classList.remove('moviendo'); enviar('DETENER', 'toque'); return; }
     boton.classList.add('activa'); B.classList.add('moviendo');
     enviar(nombre, 'continuo');
@@ -161,7 +168,7 @@
   // Gamepad: mantener
   function presionarPad(boton) {
     const nombre = boton.dataset.cmd;
-    soltarSostenido();
+    soltarSostenido(); terminarDemoAleatoria();
     vibrar(12); boton.classList.add('presionada');
     if (nombre === 'DETENER') { enviar('DETENER', 'toque'); return; }
     B.classList.add('moviendo');
@@ -183,8 +190,10 @@
     const b = ev.target.closest('[data-cmd]'); if (!b || b.disabled) return;
     ev.preventDefault();
     if (b.hasAttribute('data-sostener')) { presionarPad(b); return; }   // ON/OFF: activo mientras se mantenga presionado (cualquier modo)
+    if (b.dataset.cmd === 'DEMO_FISICA') { iniciarDemoAleatoria(b); return; }
     if (b.hasAttribute('data-toque')) {                // funciones: siempre un toque corto
       vibrar(15); b.classList.add('presionada'); setTimeout(() => b.classList.remove('presionada'), 220);
+      terminarDemoAleatoria();
       enviar(b.dataset.cmd, 'toque'); return;
     }
     if (B.dataset.control === 'rc') { pulsoRC(b); return; }
@@ -202,6 +211,20 @@
   addEventListener('blur', () => { if (st.sostenido) soltarSostenido(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && st.sostenido) soltarSostenido(); });
 
+  // DEMO aleatoria: el ESP elige movimientos al azar sin parar (no depende de la señal: con una sola orden basta)
+  function iniciarDemoAleatoria(b) {
+    vibrar([20, 40, 20]); soltarSostenido();
+    $$('#remoto .activa').forEach(x => x.classList.remove('activa'));
+    b.classList.add('activa'); B.classList.add('moviendo', 'demo-aleatoria'); st.demoAleatoria = true;
+    $('#lcd-cmd').textContent = 'Demo ∞'; $('#lcd-info').textContent = 'ALEATORIA';
+    enviar('DEMO_FISICA', 'continuo');
+  }
+  function terminarDemoAleatoria() {
+    if (!st.demoAleatoria) return;
+    st.demoAleatoria = false; B.classList.remove('demo-aleatoria');
+    botonDe('DEMO_FISICA')?.classList.remove('activa'); $('#lcd-info').textContent = 'LISTO';
+  }
+
   // Teclado (PC)
   const TECLAS = {
     ArrowUp: 'AVANZAR', ArrowDown: 'RETROCEDER', ArrowLeft: 'GIRAR_IZQUIERDA', ArrowRight: 'GIRAR_DERECHA', ' ': 'DETENER',
@@ -216,7 +239,7 @@
     B.dataset.control === 'rc' ? pulsoRC(b) : presionarPad(b);
   });
   document.addEventListener('keyup', (ev) => {
-    if (B.dataset.control !== 'pad') return;
+    if (!['pad', 'joy'].includes(B.dataset.control)) return;
     const n = TECLAS[ev.key] || TECLAS[ev.key.toLowerCase()];
     if (n === 'DETENER') botonDe('DETENER')?.classList.remove('presionada');
     if (st.sostenido && st.sostenido.nombre === n) soltarSostenido();
@@ -225,11 +248,12 @@
   // ---------- LCD ----------
   function pintarEstado(e) {
     if (!e) return;
-    if (e.comando !== undefined) $('#lcd-cmd').textContent = e.comando ? bonito(e.comando) : '—';
+    if (e.comando !== undefined) $('#lcd-cmd').textContent = st.demoAleatoria ? 'Demo ∞' : (e.comando ? bonito(e.comando) : '—');
     $('#lcd-hora').textContent = hora(e.fecha_actualizacion || e.timestamp);
   }
   function pintarEnlace(on) {
     B.classList.toggle('en-linea', on);
+    const re = $('#robot-enlace'); if (re) re.textContent = on ? '● EN LÍNEA' : '○ SIN ENLACE';
     $('#lcd-enlace').textContent = on ? '● EN LÍNEA' : '○ SIN ENLACE';
   }
 
@@ -240,14 +264,14 @@
     indicador('est-ws', 'espera', st.reintento ? 'Reconectando' : 'Conectando', `Intento ${st.reintento + 1}`);
     const ws = new WebSocket(API.replace(/^http/, 'ws') + `/ws/vehiculos/${st.idV}`);
     st.ws = ws;
-    ws.onopen = () => { st.reintento = 0; pintarEnlace(true); indicador('est-ws', 'ok', 'En línea', 'Conexión del navegador con el servidor WSS (no confirma el vehículo físico)'); st.ping = setInterval(() => ws.readyState === 1 && ws.send('ping'), 25000); };
+    ws.onopen = () => { st.reintento = 0; pintarEnlace(true); indicador('est-ws', 'ok', 'En línea', 'Conexión del navegador con el servidor WSS (no confirma el vehículo físico)'); st.ping = setInterval(() => ws.readyState === 1 && ws.send('ping'), 10000); };
     ws.onmessage = (ev) => {
       let m; try { m = JSON.parse(ev.data); } catch { return; }
       if (['pong', 'mantener'].includes(m.evento)) return;
       registrarEvento(m);
       switch (m.evento) {
         case 'estado_actual': pintarEstado(m); if (!m.demo_en_curso) demoTermina(false); break;
-        case 'movimiento': pintarEstado(m); $('#lcd-info').textContent = (m.origen || '').slice(0, 14); if (!$('#hoja').hidden) cargarHistorial();
+        case 'movimiento': if (st.demoAleatoria && m.comando && m.comando !== 'DEMO_FISICA') terminarDemoAleatoria(); pintarEstado(m); $('#lcd-info').textContent = (m.origen || '').slice(0, 14); if (!$('#hoja').hidden) cargarHistorial();
           (st.esperas || []).slice().forEach(f => f(m)); break;
         case 'demo_inicio': demoEnMarcha(m); aviso(`DEMO "${m.demo}" en marcha`); break;
         case 'demo_movimiento': pintarEstado(m); demoPaso(m); break;
@@ -261,7 +285,7 @@
     ws.onclose = () => {
       clearInterval(st.ping); pintarEnlace(false);
       if (st.ws === ws) indicador('est-ws', 'mal', 'Desconectado', 'Se cerró la conexión WSS; se reintentará');
-      const espera = Math.min(15000, 1000 * 2 ** st.reintento++);
+      const espera = Math.min(3000, 300 * 2 ** st.reintento++);   // señal débil: reintenta rápido
       setTimeout(() => { if (st.ws === ws && B.dataset.pantalla === 'control') conectar(); }, espera);
     };
   }
@@ -348,6 +372,248 @@
     }
   }
 
+  // ---------- Borrar el Wi-Fi guardado en la excavadora ----------
+  // El ESP32 recibe RESET_WIFI, borra sus credenciales (WiFiManager) y abre la red
+  // EXCAVADORA-XXXXXX para configurarla desde el teléfono. Si el comando aún no existe
+  // en el catálogo del vehículo, se crea aquí con la misma X-API-Key de la sesión.
+  async function borrarWifi() {
+    if (!confirm('¿Borrar el Wi-Fi guardado en la excavadora?\n\nSe reiniciará y abrirá la red EXCAVADORA-XXXXXX (clave Excavadora2026). Desde el teléfono entra a http://192.168.4.1 para elegir la nueva red. Mientras tanto se desconecta de este panel.')) return;
+    try {
+      if (!st.comandos.has('RESET_WIFI')) {
+        await post(`/vehiculos/${st.idV}/comandos`, { nombre: 'RESET_WIFI', codigo: 99, descripcion: 'Borra el Wi-Fi guardado en el ESP32 y abre su portal de configuración' });
+        const d = await pedir(`/vehiculos/${st.idV}/detalle`);
+        st.comandos = new Map(d.comandos.map(c => [c.nombre, c]));
+      }
+      await enviar('RESET_WIFI', 'toque');
+      $('#lcd-info').textContent = 'WIFI BORRADO';
+      aviso('Listo: la excavadora borró su Wi-Fi. Conéctate a la red EXCAVADORA-… para configurarla.');
+    } catch (e) { aviso(e.message, true); }
+  }
+
+  // ---------- Control por voz ----------
+  // El navegador transcribe (Web Speech API, es-MX) y la API interpreta con Gemini (POST /voz/interpretar).
+  // "Alto / para / frena" se resuelve aquí mismo, sin esperar a Gemini.
+  const Reconocedor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const FUNCIONES_TOQUE = new Set(['LUCES', 'SONIDO']);
+  const MANTENER_ENCENDER_MS = 2000;     // el botón de encendido del control se mantiene presionado
+
+  // Ejecuta una orden de voz igual que si se tocara el botón del panel
+  function ordenVoz(comando, modo) {
+    if (comando === 'ENCENDER') {
+      const b = botonDe('ENCENDER');
+      if (b) { presionarPad(b); setTimeout(() => { if (st.sostenido && st.sostenido.nombre === 'ENCENDER') soltarSostenido(); }, MANTENER_ENCENDER_MS); }
+      return dormir(MANTENER_ENCENDER_MS);
+    }
+    return enviar(comando, modo);
+  }
+  const voz = { activa: false, rec: null, turno: 0, ultimaInmediata: '', ultimaInmediataEn: 0,
+    conVoz: guardado('ctl.vozSimon') !== 'no', hablando: false, silencioHasta: 0 };
+  const dormir = (ms) => new Promise(ok => setTimeout(ok, ms));
+
+  function textoVoz(t, clase = '') {
+    const e = $('#voz-texto'); e.textContent = t; e.className = clase;
+    const g = $('#robot-dice'); if (g) { g.textContent = t; g.className = clase; }
+    if (clase === 'parcial') robot('escucha');
+    else if (clase === 'mal') robot('confundido');
+    else if (/pensando/.test(t)) robot('piensa');
+  }
+
+  // ---------- Robot Demon (control por voz) ----------
+  // Estados: reposo · escucha · piensa · mueve · feliz · confundido. Los ojos miran hacia el movimiento
+  // y en la ventana se enciende el optoacoplador de esa salida.
+  const MIRADA = { AVANZAR: 'arriba', SUBIR_BRAZO: 'arriba', RETROCEDER: 'abajo', BAJAR_BRAZO: 'abajo',
+    GIRAR_IZQUIERDA: 'izq', ROTAR_IZQUIERDA: 'izq', GIRAR_DERECHA: 'der', ROTAR_DERECHA: 'der' };
+  let robotT;
+  function robot(estado, comando = '') {
+    const r = $('#robot'); if (!r) return;
+    clearTimeout(robotT);
+    r.dataset.estado = estado;
+    r.dataset.mira = MIRADA[comando] || '';
+    const e = $('#robot-estado');
+    if (e) e.textContent = estado === 'mueve' || (estado === 'feliz' && comando) ? bonito(comando).toUpperCase()
+      : ({ reposo: 'EN ESPERA', escucha: 'ESCUCHANDO', piensa: 'PENSANDO', feliz: 'LISTO', confundido: 'NO ENTENDÍ' }[estado] || '');
+    $$('#robot .opto').forEach(o => o.classList.toggle('on', o.dataset.opto === comando));
+    if (estado === 'feliz' || estado === 'confundido') robotT = setTimeout(() => robot(voz.activa ? 'escucha' : 'reposo'), 2200);
+  }
+  function robotMueve(comando, decir = true) {
+    if (comando === 'DETENER') robot('feliz');
+    else if (MIRADA[comando]) robot('mueve', comando);
+    else robot('feliz', comando);
+    if (decir) hablar(comando === 'DETENER' ? 'Okey, me detengo' : CONFIRMAR[Math.floor(Math.random() * CONFIRMAR.length)]);
+  }
+
+  // ---------- Voz de Demon (síntesis del navegador: gratis y sin internet) ----------
+  // Mientras habla (y un momento después) se ignora el micrófono, para que no se escuche a sí mismo
+  // y tome "avanzando" como una orden nueva.
+  // Demon no narra cada movimiento: solo confirma, saluda y se presenta.
+  const CONFIRMAR = ['Okey, lo haré', 'Enseguida', 'Va, lo hago', 'Claro que sí'];
+  const PRESENTACION = 'Hola, soy Demon, el asistente de voz de la excavadora. Puedo avanzar, girar, subir y bajar el brazo, '
+    + 'prender las luces y mucho más. Solo dime qué hacer y yo me encargo.';
+  // Rutina "saluda": se presenta mientras sube la pala.
+  // Los segundos de cada paso se ajustan aquí.
+  const RUTINA_SALUDO = [
+    { comando: 'SUBIR_BRAZO', segundos: 1.5 },
+  ];
+  const FRASE_SALUDO = 'Hola, soy Demon. Puedo moverme, ¡miraaa! Puedes decirme qué hacer.';
+  const esSaludo = (t) => /\b(saluda|saludo|saludar|salude|saludame|salúdame|di hola)\b/i.test(t);
+  const esPresentacion = (t) => /(presentate|preséntate|quien eres|quién eres|como te llamas|cómo te llamas|que puedes hacer|qué puedes hacer)/i.test(t);
+  const sintesis = window.speechSynthesis;
+  let vozSimon = null;
+  function elegirVoz() {
+    const vs = sintesis ? sintesis.getVoices().filter(v => /^es/i.test(v.lang)) : [];
+    llenarVoces(vs);
+    const elegida = guardado('ctl.vozNombre');
+    if (elegida) { const v = vs.find(x => x.name === elegida); if (v) { vozSimon = v; return; } }
+    // Preferencia: voces naturales masculinas en español (iPhone: Juan; Chrome: Google; Windows: Raúl/Jorge)
+    const PREF = [/juan/i, /jorge/i, /ra[uú]l/i, /diego/i, /google espa[nñ]ol de estados unidos/i, /google espa[nñ]ol/i, /enhanced|premium|mejorad/i];
+    const mx = vs.filter(v => /es-(MX|US)/i.test(v.lang));
+    vozSimon = PREF.map(re => mx.find(v => re.test(v.name)) || vs.find(v => re.test(v.name))).find(Boolean)
+      || mx[0] || vs[0] || null;
+  }
+  // Catálogo: todas las voces en español que trae este aparato (iPhone, Chrome o Windows tienen distintas)
+  function llenarVoces(vs) {
+    const sel = $('#robot-voces'); if (!sel) return;
+    const actual = guardado('ctl.vozNombre') || '';
+    sel.innerHTML = '<option value="">Automática</option>' + vs
+      .sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name))
+      .map(v => `<option value="${esc(v.name)}" ${v.name === actual ? 'selected' : ''}>${esc(v.name.replace(/^(Microsoft|Google) /, ''))} · ${esc(v.lang)}</option>`).join('');
+  }
+  $('#robot-voces')?.addEventListener('change', (e) => {
+    guardado('ctl.vozNombre', e.target.value || null);
+    elegirVoz();
+    hablar('Hola, soy Demon. ¿Te gusta esta voz?');
+  });
+  if (sintesis) { elegirVoz(); sintesis.onvoiceschanged = elegirVoz; }
+  function hablar(texto) {
+    if (!sintesis || !voz.conVoz || B.dataset.control !== 'voz' || !texto) return;
+    sintesis.cancel();
+    const u = new SpeechSynthesisUtterance(texto.replace(/[“”✋→]/g, ''));
+    u.lang = 'es-MX'; if (vozSimon) u.voice = vozSimon;
+    u.pitch = 0.95; u.rate = 1; u.volume = 1;
+    voz.hablando = true;
+    u.onend = u.onerror = () => { voz.silencioHasta = Date.now() + 700; voz.hablando = false; };
+    sintesis.speak(u);
+  }
+  const escuchandoseASiMismo = () => voz.hablando || Date.now() < voz.silencioHasta;
+
+  function interpretarLocal(t) {      // respaldo si el servidor no tiene Gemini o no responde
+    const n = t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const reglas = [
+      [/^(alto|para|frena|detente|quieto|stop)\b|\b(alto|frena|detente|stop)\b/, 'DETENER'], [/(adelante|avanza)/, 'AVANZAR'], [/(atras|retrocede|reversa)/, 'RETROCEDER'],
+      [/(sube|levanta).*(brazo|pala)|(brazo|pala).*(arriba|sube)/, 'SUBIR_BRAZO'], [/(baja).*(brazo|pala)|(brazo|pala).*(abajo|baja)/, 'BAJAR_BRAZO'],
+      [/(cabina|torre|rota).*izquierda/, 'ROTAR_IZQUIERDA'], [/(cabina|torre|rota).*derecha/, 'ROTAR_DERECHA'],
+      [/izquierda/, 'GIRAR_IZQUIERDA'], [/derecha/, 'GIRAR_DERECHA'], [/(luz|luces)/, 'LUCES'], [/(claxon|sonido|pita)/, 'SONIDO'],
+      [/(encend|enciend|prend|apag)/, 'ENCENDER'], [/demo/, 'DEMO_FISICA'],
+    ];
+    const r = reglas.find(([re]) => re.test(n));
+    return r ? [{ comando: r[1], segundos: 0 }] : [];
+  }
+
+  async function ejecutarAcciones(acciones, turno) {
+    for (const a of acciones) {
+      if (turno !== voz.turno) return;                       // llegó otra orden de voz: esta se cancela
+      if (!st.comandos.has(a.comando)) continue;
+      robotMueve(a.comando, !voz.conRespuesta);
+      await ordenVoz(a.comando, FUNCIONES_TOQUE.has(a.comando) ? 'toque' : 'continuo');
+      if (a.segundos > 0 && a.comando !== 'DETENER') {
+        await dormir(a.segundos * 1000);
+        if (turno === voz.turno) { robot('feliz'); await enviar('DETENER', 'toque'); }
+      }
+    }
+    voz.conRespuesta = false;
+  }
+
+  // Frase compuesta o con tiempo ("dos segundos", "y luego") -> la interpreta Gemini.
+  // Frase simple ("avanza", "sube el brazo", "alto") -> se ejecuta al instante aquí mismo.
+  const esCompuesta = (t) => /\b(y|luego|despues|después|segundo|segundos|poquito|rato|veces|mientras)\b|\d/i.test(t);
+
+  // Se llama con cada pedazo que va reconociendo el navegador, antes de que termines de hablar
+  function ordenInmediata(texto) {
+    if (esPresentacion(texto) || esSaludo(texto)) return false;
+    if (esCompuesta(texto) || texto.split(/\s+/).length > 4) return false;
+    const [a] = interpretarLocal(texto);
+    if (!a || !st.comandos.has(a.comando)) return false;
+    if (a.comando === voz.ultimaInmediata && Date.now() - voz.ultimaInmediataEn < 2500) return true;  // ya se mandó
+    voz.ultimaInmediata = a.comando; voz.ultimaInmediataEn = Date.now();
+    voz.turno++;
+    robotMueve(a.comando);
+    ordenVoz(a.comando, FUNCIONES_TOQUE.has(a.comando) || a.comando === 'DETENER' ? 'toque' : 'continuo');
+    textoVoz(a.comando === 'DETENER' ? 'Alto ✋' : bonito(a.comando), 'ok');
+    $('#lcd-info').textContent = ('VOZ ' + a.comando).slice(0, 14);
+    return true;
+  }
+
+  async function procesarVoz(texto) {
+    if (esSaludo(texto)) {
+      const turno = ++voz.turno;
+      robot('feliz'); textoVoz('¡Hola! Soy Demon 👋', 'ok');
+      voz.conRespuesta = true;                           // ya habló: no confirmar cada paso
+      hablar(FRASE_SALUDO);
+      ejecutarAcciones(RUTINA_SALUDO, turno);
+      return;
+    }
+    if (esPresentacion(texto)) { voz.turno++; robot('feliz'); textoVoz('¡Hola! Soy Demon 🤖', 'ok'); hablar(PRESENTACION); return; }
+    if (ordenInmediata(texto)) return;                    // ya se ejecutó sin esperar a Gemini
+    const turno = ++voz.turno;
+    textoVoz(`“${texto}” · pensando…`);
+    if (/\b(alto|para|frena|detente|quieto|stop)\b/i.test(texto) && texto.split(/\s+/).length <= 3) {
+      await enviar('DETENER', 'toque'); textoVoz('Alto ✋'); return;
+    }
+    let acciones, respuesta;
+    try {
+      const r = await post('/voz/interpretar', { texto });
+      acciones = r.acciones; respuesta = r.respuesta;
+    } catch (e) {
+      acciones = interpretarLocal(texto); respuesta = acciones.length ? bonito(acciones[0].comando) + ' (sin Gemini)' : '';
+      if (!acciones.length && (e.status === 503 || e.status === 502)) aviso(e.message, true);
+    }
+    if (turno !== voz.turno) return;
+    if (!acciones.length) { textoVoz(`No entendí: “${texto}”`, 'mal'); hablar('No te entendí, ¿me lo repites?'); return; }
+    textoVoz(respuesta || acciones.map(a => bonito(a.comando)).join(' → '), 'ok');
+    voz.conRespuesta = true;                              // una sola confirmación para toda la secuencia
+    hablar(acciones.length === 1 && acciones[0].comando === 'DETENER' ? 'Okey, me detengo' : CONFIRMAR[Math.floor(Math.random() * CONFIRMAR.length)]);
+    $('#lcd-info').textContent = ('VOZ ' + acciones[0].comando).slice(0, 14);
+    ejecutarAcciones(acciones, turno);
+  }
+
+  function escuchar() {
+    const rec = new Reconocedor();
+    rec.lang = 'es-MX'; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
+    rec.onresult = (ev) => {
+      const r = ev.results[ev.results.length - 1];
+      const t = r[0].transcript.trim();
+      if (!t || escuchandoseASiMismo()) return;              // es la voz de Demon, no una orden
+      if (r.isFinal) procesarVoz(t);
+      else if (!ordenInmediata(t)) textoVoz(t + '…', 'parcial');
+    };
+    rec.onerror = (ev) => {
+      if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') { aviso('Permite el micrófono para usar la voz', true); apagarVoz(); }
+    };
+    rec.onend = () => { if (voz.activa) setTimeout(() => { if (voz.activa) try { rec.start(); } catch { /* ya iniciado */ } }, 250); };
+    voz.rec = rec;
+    rec.start();
+  }
+
+  function apagarVoz() {
+    voz.activa = false; voz.turno++;
+    try { voz.rec && voz.rec.stop(); } catch { /* ya detenido */ }
+    voz.rec = null;
+    $('#voz-barra').hidden = true;
+    robot('reposo'); textoVoz('En espera');
+    $$('[data-accion="voz"]').forEach(b => { b.setAttribute('aria-pressed', 'false'); b.classList.remove('activa'); });
+  }
+
+  function alternarVoz() {
+    if (voz.activa) { apagarVoz(); aviso('Control por voz apagado'); return; }
+    if (!Reconocedor) { aviso('Este navegador no reconoce voz. Usa Safari o Chrome actualizados.', true); return; }
+    voz.activa = true;
+    $('#voz-barra').hidden = B.dataset.control === 'voz'; textoVoz('Te escucho… di una orden');
+    robot('escucha');
+    hablar('Estoy esperando tu orden');                           // el primer toque también desbloquea el audio en iPhone
+    $$('[data-accion="voz"]').forEach(b => { b.setAttribute('aria-pressed', 'true'); b.classList.add('activa'); });
+    try { escuchar(); } catch (e) { aviso('No se pudo usar el micrófono', true); apagarVoz(); }
+  }
+
   // ---------- Acciones generales ----------
   document.addEventListener('click', (ev) => {
     const a = ev.target.closest('[data-accion]'); if (!a) return;
@@ -357,8 +623,22 @@
     else if (acc === 'girar') girar();
     else if (acc === 'hoja') abrirHoja(a.dataset.tab);
     else if (acc === 'cerrar-hoja') cerrarHoja();
+    else if (acc === 'wifi') borrarWifi();
+    else if (acc === 'voz') alternarVoz();
+    else if (acc === 'robot-alto') { voz.turno++; robot('feliz'); textoVoz('Alto ✋', 'ok'); enviar('DETENER', 'toque'); }
+    else if (acc === 'robot-voz') {
+      voz.conVoz = !voz.conVoz; guardado('ctl.vozSimon', voz.conVoz ? 'si' : 'no');
+      a.setAttribute('aria-pressed', String(voz.conVoz)); a.textContent = voz.conVoz ? '🔊 VOZ' : '🔇 MUDO';
+      if (!voz.conVoz && sintesis) sintesis.cancel(); else hablar('Estoy esperando tu orden');
+    }
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarHoja(); });
+
+  // iPhone pausa la pestaña en segundo plano: al volver, reconecta sin esperar
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && B.dataset.pantalla === 'control' && (!st.ws || st.ws.readyState > 1)) { st.reintento = 0; conectar(); }
+  });
+  addEventListener('online', () => { if (B.dataset.pantalla === 'control') { st.reintento = 0; conectar(); } });
 
 
   // ---------- Joystick (modo "joy") ----------

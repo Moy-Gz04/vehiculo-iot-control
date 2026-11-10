@@ -10,7 +10,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%23D9DDE4%22/%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%228%22 fill=%22%232250D9%22/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
-  <link rel="stylesheet" href="css/app.css?v=1">
+  <link rel="stylesheet" href="css/app.css?v=2">
 </head>
 <body data-pantalla="login" data-control="rc" data-orient="h">
 
@@ -76,6 +76,12 @@
         <span class="opcion-modo">Arrastrar</span>
         <p>Arrastra la perilla para avanzar, retroceder o girar; al soltarla vuelve al centro y la excavadora se <b>detiene</b>.</p>
       </button>
+      <button type="button" class="opcion" data-elegir="voz">
+        <span class="mini mini-voz" aria-hidden="true"><i class="ojo-m"></i><i class="ojo-m d"></i><i class="vent"></i></span>
+        <strong>Demon · Voz</strong>
+        <span class="opcion-modo">Hablando</span>
+        <p>Un mini robot que escucha tus órdenes: dile <b>“avanza”</b>, <b>“sube el brazo”</b> o <b>“alto”</b>.</p>
+      </button>
     </div>
   </section>
 
@@ -137,6 +143,8 @@
             <div class="mini-botones">
               <button type="button" class="pildora" data-accion="hoja" data-tab="demos">DEMO</button>
               <button type="button" class="pildora" data-accion="hoja" data-tab="historial">LOG</button>
+              <button type="button" class="pildora" data-accion="wifi" aria-label="Borrar el Wi-Fi guardado en la excavadora">WI-FI</button>
+              <button type="button" class="pildora pildora-voz" data-accion="voz" aria-pressed="false" aria-label="Control por voz">VOZ</button>
             </div>
           </div>
 
@@ -157,10 +165,76 @@
             <button type="button" class="funcion" data-cmd="ENCENDER" data-sostener aria-label="Encender o apagar (mantén presionado para apagar)"><svg viewBox="0 0 24 24"><path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0"/></svg><em>ON/OFF</em></button>
             <button type="button" class="funcion" data-cmd="LUCES" data-toque aria-label="Luces"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg><em>LED</em></button>
             <button type="button" class="funcion" data-cmd="SONIDO" data-toque aria-label="Sonido"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg><em>SONIDO</em></button>
-            <button type="button" class="funcion" data-cmd="DEMO_FISICA" data-toque aria-label="Demo del control"><svg viewBox="0 0 24 24"><path d="M7 5v14l12-7z"/></svg><em>DEMO</em></button>
+            <button type="button" class="funcion" data-cmd="DEMO_FISICA" data-toque aria-label="Demo aleatoria infinita: sigue hasta tocar otro botón o ALTO"><svg viewBox="0 0 24 24"><path d="M7 5v14l12-7z"/></svg><em>DEMO</em></button>
           </div>
         </div>
       </div>
+
+      <!-- ===== Control por voz: robot "Demon" (solo se ve con data-control="voz") ===== -->
+      <div class="robot-escena" id="robot-escena">
+        <div class="robot" id="robot" data-estado="reposo" data-mira="">
+          <div class="robot-antena" aria-hidden="true"><i></i></div>
+          <div class="robot-cuerpo">
+            <div class="robot-tornillos" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <div class="robot-cara" aria-hidden="true">
+              <div class="ojo"><i class="brillo"></i></div>
+              <div class="ojo"><i class="brillo"></i></div>
+              <span class="mejilla izq"></span><span class="mejilla der"></span>
+              <span class="boca"></span>
+            </div>
+            <div class="robot-ventana" aria-label="Interior: ESP32, 74HC595 y optoacopladores">
+              <svg viewBox="0 0 320 130" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs>
+                  <linearGradient id="pcb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1f6b45"/><stop offset="1" stop-color="#0f3d27"/></linearGradient>
+                </defs>
+                <rect width="320" height="130" fill="#0b0d12"/>
+                <!-- placa del ESP32 -->
+                <g transform="translate(10 22)">
+                  <rect width="92" height="86" rx="5" fill="url(#pcb)"/>
+                  <rect x="18" y="10" width="56" height="40" rx="2" fill="#c9ced7"/><rect x="22" y="14" width="48" height="32" rx="1" fill="#9aa1ad"/>
+                  <text x="46" y="34" class="chip-et">ESP32</text>
+                  <rect x="30" y="58" width="32" height="14" rx="1" fill="#111"/><text x="46" y="68" class="chip-et chico">HC595</text>
+                  <circle class="esp-led" cx="10" cy="76" r="3"/>
+                  <g fill="#d4a017"><rect x="6" y="2" width="4" height="4"/><rect x="14" y="2" width="4" height="4"/><rect x="22" y="2" width="4" height="4"/><rect x="30" y="2" width="4" height="4"/><rect x="38" y="2" width="4" height="4"/><rect x="46" y="2" width="4" height="4"/><rect x="54" y="2" width="4" height="4"/><rect x="62" y="2" width="4" height="4"/><rect x="70" y="2" width="4" height="4"/><rect x="78" y="2" width="4" height="4"/></g>
+                </g>
+                <!-- placa de optoacopladores -->
+                <rect x="108" y="8" width="204" height="114" rx="5" fill="url(#pcb)"/>
+                <g class="opto" data-opto="AVANZAR" transform="translate(118 18)"><rect class="opto-cuerpo" width="30" height="22" rx="2"/><circle cx="5" cy="5" r="1.6" fill="#555"/><text x="15" y="14.5">PC817</text><rect class="pata" x="4" y="-4" width="2.4" height="4"/><rect class="pata" x="4" y="22" width="2.4" height="4"/><rect class="pata" x="11" y="-4" width="2.4" height="4"/><rect class="pata" x="11" y="22" width="2.4" height="4"/><rect class="pata" x="18" y="-4" width="2.4" height="4"/><rect class="pata" x="18" y="22" width="2.4" height="4"/><rect class="pata" x="25" y="-4" width="2.4" height="4"/><rect class="pata" x="25" y="22" width="2.4" height="4"/><circle class="opto-led" cx="15" cy="34" r="3"/><text class="opto-et" x="15" y="47">AVZ</text></g><g class="opto" data-opto="RETROCEDER" transform="translate(164 18)"><rect class="opto-cuerpo" width="30" height="22" rx="2"/><circle cx="5" cy="5" r="1.6" fill="#555"/><text x="15" y="14.5">PC817</text><rect class="pata" x="4" y="-4" width="2.4" height="4"/><rect class="pata" x="4" y="22" width="2.4" height="4"/><rect class="pata" x="11" y="-4" width="2.4" height="4"/><rect class="pata" x="11" y="22" width="2.4" height="4"/><rect class="pata" x="18" y="-4" width="2.4" height="4"/><rect class="pata" x="18" y="22" width="2.4" height="4"/><rect class="pata" x="25" y="-4" width="2.4" height="4"/><rect class="pata" x="25" y="22" width="2.4" height="4"/><circle class="opto-led" cx="15" cy="34" r="3"/><text class="opto-et" x="15" y="47">RET</text></g><g class="opto" data-opto="GIRAR_IZQUIERDA" transform="translate(210 18)"><rect class="opto-cuerpo" width="30" height="22" rx="2"/><circle cx="5" cy="5" r="1.6" fill="#555"/><text x="15" y="14.5">PC817</text><rect class="pata" x="4" y="-4" width="2.4" height="4"/><rect class="pata" x="4" y="22" width="2.4" height="4"/><rect class="pata" x="11" y="-4" width="2.4" height="4"/><rect class="pata" x="11" y="22" width="2.4" height="4"/><rect class="pata" x="18" y="-4" width="2.4" height="4"/><rect class="pata" x="18" y="22" width="2.4" height="4"/><rect class="pata" x="25" y="-4" width="2.4" height="4"/><rect class="pata" x="25" y="22" width="2.4" height="4"/><circle class="opto-led" cx="15" cy="34" r="3"/><text class="opto-et" x="15" y="47">G-I</text></g><g class="opto" data-opto="GIRAR_DERECHA" transform="translate(256 18)"><rect class="opto-cuerpo" width="30" height="22" rx="2"/><circle cx="5" cy="5" r="1.6" fill="#555"/><text x="15" y="14.5">PC817</text><rect class="pata" x="4" y="-4" width="2.4" height="4"/><rect class="pata" x="4" y="22" width="2.4" height="4"/><rect class="pata" x="11" y="-4" width="2.4" height="4"/><rect class="pata" x="11" y="22" width="2.4" height="4"/><rect class="pata" x="18" y="-4" width="2.4" height="4"/><rect class="pata" x="18" y="22" width="2.4" height="4"/><rect class="pata" x="25" y="-4" width="2.4" height="4"/><rect class="pata" x="25" y="22" width="2.4" height="4"/><circle class="opto-led" cx="15" cy="34" r="3"/><text class="opto-et" x="15" y="47">G-D</text></g><g class="opto" data-opto="SUBIR_BRAZO" transform="translate(118 74)"><rect class="opto-cuerpo" width="30" height="22" rx="2"/><circle cx="5" cy="5" r="1.6" fill="#555"/><text x="15" y="14.5">PC817</text><rect class="pata" x="4" y="-4" width="2.4" height="4"/><rect class="pata" x="4" y="22" width="2.4" height="4"/><rect class="pata" x="11" y="-4" width="2.4" height="4"/><rect class="pata" x="11" y="22" width="2.4" height="4"/><rect class="pata" x="18" y="-4" width="2.4" height="4"/><rect class="pata" x="18" y="22" width="2.4" height="4"/><rect class="pata" x="25" y="-4" width="2.4" height="4"/><rect class="pata" x="25" y="22" width="2.4" height="4"/><circle class="opto-led" cx="15" cy="34" r="3"/><text class="opto-et" x="15" y="47">SUB</text></g><g class="opto" data-opto="BAJAR_BRAZO" transform="translate(164 74)"><rect class="opto-cuerpo" width="30" height="22" rx="2"/><circle cx="5" cy="5" r="1.6" fill="#555"/><text x="15" y="14.5">PC817</text><rect class="pata" x="4" y="-4" width="2.4" height="4"/><rect class="pata" x="4" y="22" width="2.4" height="4"/><rect class="pata" x="11" y="-4" width="2.4" height="4"/><rect class="pata" x="11" y="22" width="2.4" height="4"/><rect class="pata" x="18" y="-4" width="2.4" height="4"/><rect class="pata" x="18" y="22" width="2.4" height="4"/><rect class="pata" x="25" y="-4" width="2.4" height="4"/><rect class="pata" x="25" y="22" width="2.4" height="4"/><circle class="opto-led" cx="15" cy="34" r="3"/><text class="opto-et" x="15" y="47">BAJ</text></g><g class="opto" data-opto="ROTAR_IZQUIERDA" transform="translate(210 74)"><rect class="opto-cuerpo" width="30" height="22" rx="2"/><circle cx="5" cy="5" r="1.6" fill="#555"/><text x="15" y="14.5">PC817</text><rect class="pata" x="4" y="-4" width="2.4" height="4"/><rect class="pata" x="4" y="22" width="2.4" height="4"/><rect class="pata" x="11" y="-4" width="2.4" height="4"/><rect class="pata" x="11" y="22" width="2.4" height="4"/><rect class="pata" x="18" y="-4" width="2.4" height="4"/><rect class="pata" x="18" y="22" width="2.4" height="4"/><rect class="pata" x="25" y="-4" width="2.4" height="4"/><rect class="pata" x="25" y="22" width="2.4" height="4"/><circle class="opto-led" cx="15" cy="34" r="3"/><text class="opto-et" x="15" y="47">R-I</text></g><g class="opto" data-opto="ROTAR_DERECHA" transform="translate(256 74)"><rect class="opto-cuerpo" width="30" height="22" rx="2"/><circle cx="5" cy="5" r="1.6" fill="#555"/><text x="15" y="14.5">PC817</text><rect class="pata" x="4" y="-4" width="2.4" height="4"/><rect class="pata" x="4" y="22" width="2.4" height="4"/><rect class="pata" x="11" y="-4" width="2.4" height="4"/><rect class="pata" x="11" y="22" width="2.4" height="4"/><rect class="pata" x="18" y="-4" width="2.4" height="4"/><rect class="pata" x="18" y="22" width="2.4" height="4"/><rect class="pata" x="25" y="-4" width="2.4" height="4"/><rect class="pata" x="25" y="22" width="2.4" height="4"/><circle class="opto-led" cx="15" cy="34" r="3"/><text class="opto-et" x="15" y="47">R-D</text></g>
+                <!-- clemas verdes -->
+                <g class="clemas"><rect x="114" y="114" width="20" height="12" rx="1"/><rect x="138" y="114" width="20" height="12" rx="1"/><rect x="162" y="114" width="20" height="12" rx="1"/><rect x="186" y="114" width="20" height="12" rx="1"/><rect x="210" y="114" width="20" height="12" rx="1"/><rect x="234" y="114" width="20" height="12" rx="1"/><rect x="258" y="114" width="20" height="12" rx="1"/><rect x="282" y="114" width="20" height="12" rx="1"/></g>
+                <!-- cables -->
+                <g class="cables" fill="none" stroke-linecap="round" stroke-width="3">
+                  <path stroke="#f2c94c" d="M30 22 C 40 -10, 90 -6, 120 20"/>
+                  <path stroke="#f5f5f5" d="M44 22 C 60 -14, 140 -10, 170 18"/>
+                  <path stroke="#3b6fe0" d="M58 22 C 80 -12, 200 -12, 216 18"/>
+                  <path stroke="#8a5a2b" d="M72 22 C 100 -8, 240 -14, 262 18"/>
+                  <path stroke="#f5f5f5" d="M20 108 C 40 140, 120 140, 124 126"/>
+                  <path stroke="#3b6fe0" d="M36 108 C 60 150, 170 146, 172 126"/>
+                  <path stroke="#f2c94c" d="M52 108 C 80 150, 230 150, 244 126"/>
+                </g>
+              </svg>
+              <i class="reflejo" aria-hidden="true"></i>
+            </div>
+            <div class="robot-placa"><span class="robot-led" aria-hidden="true"></span><b>DEMON</b><small>IoT · VOZ</small></div>
+          </div>
+          <div class="robot-sombra" aria-hidden="true"></div>
+        </div>
+
+
+        <div class="robot-controles">
+          <button type="button" class="robot-mic" data-accion="voz" aria-pressed="false" aria-label="Escuchar orden de voz">
+            <span class="ondas" aria-hidden="true"><i></i><i></i><i></i></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+          </button>
+          <button type="button" class="robot-alto" data-accion="robot-alto" aria-label="Alto: detener todo">ALTO</button>
+        </div>
+        <div class="robot-pantalla" role="status" aria-live="polite">
+          <div class="rp-fila"><span id="robot-estado">EN ESPERA</span><span class="rp-der"><button type="button" class="rp-voz" data-accion="robot-voz" aria-pressed="true" aria-label="Voz de Demon">🔊 VOZ</button><span id="robot-enlace">● EN LÍNEA</span></span></div>
+          <div id="robot-dice">¡Hola! Soy Demon.</div>
+          <label class="rp-voces" for="robot-voces"><span>Voz</span><select id="robot-voces"><option value="">Automática</option></select></label>
+        </div>
+      </div>
+      <p class="voz-barra" id="voz-barra" hidden><span class="voz-punto"></span><span id="voz-texto">Escuchando… di una orden</span></p>
       <p class="ayuda" id="ayuda">Toca una acción: la excavadora sigue hasta que eliges otra o presionas ALTO.</p>
     </div>
   </section>
@@ -190,7 +264,7 @@
   <div class="aviso" id="aviso" role="status" aria-live="polite"></div>
 
   <footer class="creditos">Desarrollado por Juan Moisés Gómez Aispuro · 2026</footer>
-  <script src="js/config.js?v=1"></script>
-  <script src="js/app.js?v=1"></script>
+  <script src="js/config.js?v=2"></script>
+  <script src="js/app.js?v=2"></script>
 </body>
 </html>

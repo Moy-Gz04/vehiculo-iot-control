@@ -23,6 +23,7 @@ js/app.js         Lógica: cliente REST, WebSocket, modos de control, joystick, 
 | RC Clásico | Un toque | El comando en modo `continuo`; sigue hasta otra orden o **ALTO** |
 | Gamepad | Mantener presionado | El comando en modo `mantener` y aviso `mantener` periódico; al soltar, `soltar` |
 | **Joystick** | Arrastrar la perilla | Un comando **solo cuando cambia la dirección**; al soltar, regresar a la zona neutral, cancelar el gesto o perder el puntero → **DETENER** |
+| Voz | Hablar al robot Demon | Órdenes por voz (heredado del panel de la API) |
 
 ### Joystick
 
