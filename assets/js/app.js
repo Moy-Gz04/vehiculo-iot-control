@@ -51,7 +51,7 @@
 
   // ---------- CONEXIÓN (sin login: la X-API-Key viene de config.js) ----------
   // Entra sola al abrir la página; si el servidor no responde o rechaza la clave, muestra el motivo y "Reintentar".
-  async function conectar() {
+  async function entrar() {
     $('#login-estado').textContent = 'Conectando con el servidor…';
     $('#login-error').textContent = ''; $('#login-reintentar').hidden = true;
     ir('login');
@@ -75,7 +75,7 @@
     $('#login-error').textContent = motivo; $('#login-reintentar').hidden = false;
     ir('login');
   }
-  $('#login-reintentar').addEventListener('click', conectar);
+  $('#login-reintentar').addEventListener('click', entrar);
 
   // ---------- SELECTOR ----------
   $$('[data-elegir]').forEach(b => b.addEventListener('click', () => usarControl(b.dataset.elegir)));
@@ -741,6 +741,6 @@
   (async function iniciar() {
     B.dataset.orient = guardado('ctl.orient') || (esMovil() && innerHeight > innerWidth ? 'v' : 'h');
     guardado('ctl.apikey', null); guardado('ctl.origen', null);   // restos de la versión con login
-    await conectar();
+    await entrar();
   })();
 })();
