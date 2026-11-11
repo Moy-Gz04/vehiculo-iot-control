@@ -1,4 +1,4 @@
-// Control Excavadora IoT: login, selector de control y tres modos de manejo.
+// Control Excavadora IoT: entrada automática (sin login), selector de control y modos de manejo.
 //  - RC Clásico (pulso): un toque -> modo "continuo" (sigue hasta la siguiente orden o ALTO)
 //  - Gamepad (mantener): presionar -> modo "mantener" + aviso /mantener cada 250 ms; soltar -> /soltar
 //  - DEMO (junto a SONIDO): demo aleatoria infinita en el ESP; sigue hasta tocar otro botón o ALTO
@@ -18,8 +18,8 @@
     sostenido: null,   // { nombre, boton, timer } en el gamepad
     demoAleatoria: false,   // la demo infinita del ESP está corriendo
   };
-  const clave = () => guardado('ctl.apikey') || '';
-  const origen = () => guardado('ctl.origen') || 'WEB-CONTROL';
+  const clave = () => CFG.API_KEY || '';
+  const origen = () => CFG.ORIGEN || 'WEB-CONTROL';
 
   // ---------- Utilidades ----------
   async function pedir(ruta, op = {}) {
@@ -49,29 +49,33 @@
   // ---------- Pantallas ----------
   function ir(p) { B.dataset.pantalla = p; window.scrollTo(0, 0); }
 
-  // ---------- LOGIN ----------
-  $('#form-login').addEventListener('submit', async (ev) => {
-    ev.preventDefault();
-    const k = $('#login-clave').value.trim();
-    const o = ($('#login-origen').value.trim() || 'WEB-CONTROL').toUpperCase().slice(0, 30);
-    const btn = $('#login-entrar'); btn.disabled = true; btn.textContent = 'Verificando…'; $('#login-error').textContent = '';
+  // ---------- CONEXIÓN (sin login: la X-API-Key viene de config.js) ----------
+  // Entra sola al abrir la página; si el servidor no responde o rechaza la clave, muestra el motivo y "Reintentar".
+  async function conectar() {
+    $('#login-estado').textContent = 'Conectando con el servidor…';
+    $('#login-error').textContent = ''; $('#login-reintentar').hidden = true;
+    ir('login');
     try {
       await cargarVehiculos();
-      await post(`/vehiculos/${st.idV}/soltar`, null, k);     // valida la clave sin mover nada
-      guardado('ctl.apikey', k); guardado('ctl.origen', o);
-      ir('selector');
+      await post(`/vehiculos/${st.idV}/soltar`);     // valida la clave sin mover nada
+      const c = guardado('ctl.control');
+      if (c) await usarControl(c); else ir('selector');
     } catch (e) {
-      $('#login-error').textContent = e.status === 401 || e.status === 403 ? 'Clave incorrecta. Revisa la X-API-Key del servidor.' : `No se pudo conectar: ${e.message}`;
-    } finally { btn.disabled = false; btn.textContent = 'Entrar'; }
-  });
-
-  function salir() {
-    soltarSostenido(); guardado('ctl.apikey', null);
-    joySoltar(false);
-    if (st.ws) { st.ws.onclose = null; st.ws.close(); st.ws = null; }
-    indicador('est-ws', 'mal', 'Desconectado', 'Sesión cerrada');
-    cerrarHoja(); $('#login-clave').value = ''; ir('login');
+      sinConexion(e.status === 401 || e.status === 403
+        ? 'El servidor rechazó la X-API-Key configurada en assets/js/config.js.'
+        : `No se pudo conectar: ${e.message}`);
+    }
   }
+  function sinConexion(motivo) {
+    soltarSostenido(); joySoltar(false);
+    if (st.ws) { st.ws.onclose = null; st.ws.close(); st.ws = null; }
+    indicador('est-ws', 'mal', 'Desconectado', 'Sin conexión con el servidor');
+    cerrarHoja();
+    $('#login-estado').textContent = 'Sin conexión';
+    $('#login-error').textContent = motivo; $('#login-reintentar').hidden = false;
+    ir('login');
+  }
+  $('#login-reintentar').addEventListener('click', conectar);
 
   // ---------- SELECTOR ----------
   $$('[data-elegir]').forEach(b => b.addEventListener('click', () => usarControl(b.dataset.elegir)));
@@ -141,7 +145,7 @@
       pintarEstado(r.estado);
       return r;
     } catch (e) {
-      if (e.status === 401 || e.status === 403) { aviso('La sesión expiró: vuelve a iniciar sesión.', true); salir(); }
+      if (e.status === 401 || e.status === 403) sinConexion('El servidor rechazó la X-API-Key configurada en assets/js/config.js.');
       else aviso(e.message, true);
       return null;
     }
@@ -618,8 +622,7 @@
   document.addEventListener('click', (ev) => {
     const a = ev.target.closest('[data-accion]'); if (!a) return;
     const acc = a.dataset.accion;
-    if (acc === 'salir') salir();
-    else if (acc === 'cambiar') { soltarSostenido(); joySoltar(true); ir('selector'); }
+    if (acc === 'cambiar') { soltarSostenido(); joySoltar(true); ir('selector'); }
     else if (acc === 'girar') girar();
     else if (acc === 'hoja') abrirHoja(a.dataset.tab);
     else if (acc === 'cerrar-hoja') cerrarHoja();
@@ -737,16 +740,7 @@
   // ---------- Inicio ----------
   (async function iniciar() {
     B.dataset.orient = guardado('ctl.orient') || (esMovil() && innerHeight > innerWidth ? 'v' : 'h');
-    $('#login-origen').value = origen() === 'WEB-CONTROL' ? '' : origen();
-    if (!clave()) { ir('login'); return; }
-    try {
-      await cargarVehiculos();
-      await post(`/vehiculos/${st.idV}/soltar`);
-      const c = guardado('ctl.control');
-      if (c) await usarControl(c); else ir('selector');
-    } catch (e) {
-      if (e.status === 401 || e.status === 403) guardado('ctl.apikey', null);
-      ir('login');
-    }
+    guardado('ctl.apikey', null); guardado('ctl.origen', null);   // restos de la versión con login
+    await conectar();
   })();
 })();

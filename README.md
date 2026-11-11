@@ -9,12 +9,21 @@ Es solo el frontend: consume la API FastAPI ya desplegada en AWS ([vehiculo-iot-
 ## Estructura
 
 ```
-index.html        Pantallas: inicio de sesión, selector de control y control remoto; indicadores y créditos
-css/app.css       Estilos (Mobile First, vertical y horizontal); indicadores, joystick y pie
-js/config.js      Configuración pública: URL base de la API y rutas de salud (sin secretos)
-js/app.js         Lógica: cliente REST, WebSocket, modos de control, joystick, DEMO e indicadores
-.nojekyll         GitHub Pages sirve los archivos tal cual
+vehiculo-iot-control/
+├── index.html              Pantallas: conexión, selector de control y control remoto; indicadores y créditos
+├── assets/
+│   ├── css/
+│   │   └── app.css         Estilos (Mobile First, vertical y horizontal); indicadores, joystick y pie
+│   └── js/
+│       ├── config.js       Configuración: URL base de la API, X-API-Key y rutas de salud
+│       └── app.js          Lógica: cliente REST, WebSocket, modos de control, joystick, DEMO e indicadores
+├── .nojekyll               GitHub Pages sirve los archivos tal cual
+└── README.md
 ```
+
+## Acceso
+
+La página **no pide inicio de sesión**: al abrirla toma la `X-API-Key` de `assets/js/config.js`, la valida contra la API y entra directo al selector de control (o al último control usado). Si el servidor no responde o rechaza la clave, muestra el motivo y un botón **Reintentar**.
 
 ## Modos de control
 
@@ -64,7 +73,8 @@ Cada indicador usa texto, icono y color (nunca solo color). Al pasar el puntero 
 
 ## Seguridad
 
-- No hay claves, tokens ni credenciales en el repositorio. La **X-API-Key** la escribe el operador en la pantalla de inicio y se guarda solo en su navegador (`localStorage`).
+- La **X-API-Key** de control va en `assets/js/config.js` para que la página entre sin login. Al ser un repositorio y una página públicos, **la clave es visible para cualquiera**: sirve para la demostración de la práctica, no como protección. Si se cambia `API_KEY` en el servidor, hay que actualizarla también en ese archivo.
+- No hay credenciales de AWS ni de la base de datos en el repositorio: esas viven solo en el servidor.
 - Todo va por **HTTPS** y **WSS** (sin contenido mixto desde GitHub Pages).
 - El backend permite **CORS** solo para `https://moy-gz04.github.io`, métodos `GET`/`POST` y encabezados `Content-Type` y `X-API-Key`. CORS no es autenticación: las operaciones de control siguen exigiendo la clave.
 - Los textos que llegan de la API se escapan antes de mostrarse en la página.
@@ -77,17 +87,17 @@ cd C:\vehiculo_iot_api
 set CORS_ORIGENES=http://localhost:8020
 .venv\Scripts\python -m uvicorn app.main:app --port 8010
 
-# 2) Frontend: cambia API_BASE en js/config.js a http://127.0.0.1:8010 y sirve la carpeta
+# 2) Frontend: cambia API_BASE (y API_KEY, si la local es otra) en assets/js/config.js a http://127.0.0.1:8010 y sirve la carpeta
 cd C:\vehiculo_iot_control
 python -m http.server 8020
 # abrir http://localhost:8020/
 ```
 
-Para producción, `js/config.js` apunta a `https://13-218-5-111.sslip.io`.
+Para producción, `assets/js/config.js` apunta a `https://13-218-5-111.sslip.io`.
 
 ## Publicación
 
-GitHub Pages desde la rama `main`, carpeta raíz. Todas las rutas son relativas (`css/…`, `js/…`), así que funcionan en la subruta `/vehiculo-iot-control/`.
+GitHub Pages desde la rama `main`, carpeta raíz. `index.html` se queda en la raíz y todas las rutas son relativas (`assets/css/…`, `assets/js/…`), así que la página sigue abriendo en https://moy-gz04.github.io/vehiculo-iot-control/.
 
 ---
 Desarrollado por Juan Moisés Gómez Aispuro · 2026

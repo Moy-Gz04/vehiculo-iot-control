@@ -10,7 +10,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%23D9DDE4%22/%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%228%22 fill=%22%232250D9%22/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
-  <link rel="stylesheet" href="css/app.css?v=2">
+  <link rel="stylesheet" href="assets/css/app.css?v=3">
 </head>
 <body data-pantalla="login" data-control="rc" data-orient="h">
 
@@ -27,9 +27,9 @@
     </span>
   </div>
 
-  <!-- ===================== LOGIN ===================== -->
+  <!-- ===================== CONEXIÓN (entrada automática, sin login) ===================== -->
   <section class="pantalla login" id="pantalla-login" aria-labelledby="login-titulo">
-    <form class="login-tarjeta" id="form-login" autocomplete="off">
+    <div class="login-tarjeta">
       <div class="login-marca">
         <span class="login-logo" aria-hidden="true"><i></i></span>
         <div>
@@ -37,25 +37,16 @@
           <p>Centro de control remoto</p>
         </div>
       </div>
-      <label class="campo" for="login-clave">
-        <span>Clave de acceso</span>
-        <input id="login-clave" type="password" placeholder="X-API-Key" required autocomplete="current-password">
-      </label>
-      <label class="campo" for="login-origen">
-        <span>Nombre del operador</span>
-        <input id="login-origen" type="text" maxlength="30" placeholder="WEB-CONTROL">
-      </label>
+      <p class="login-nota" id="login-estado">Conectando con el servidor…</p>
       <p class="login-error" id="login-error" role="alert"></p>
-      <button type="submit" class="btn-azul" id="login-entrar">Entrar</button>
-      <p class="login-nota">La clave es la variable <code>API_KEY</code> del servidor. Se guarda solo en este dispositivo.</p>
-    </form>
+      <button type="button" class="btn-azul" id="login-reintentar" hidden>Reintentar</button>
+    </div>
   </section>
 
   <!-- ===================== SELECTOR ===================== -->
   <section class="pantalla selector" id="pantalla-selector" aria-labelledby="sel-titulo">
     <header class="selector-cab">
       <h1 id="sel-titulo">Elige tu control</h1>
-      <button type="button" class="btn-texto" data-accion="salir">Cerrar sesión</button>
     </header>
     <div class="selector-opciones">
       <button type="button" class="opcion" data-elegir="rc">
@@ -257,14 +248,13 @@
       </div>
       <ol class="lista registros" data-panel="historial" id="lista-historial" hidden></ol>
       <ol class="lista registros" data-panel="eventos" id="lista-eventos" hidden></ol>
-      <button type="button" class="btn-texto salir-hoja" data-accion="salir">Cerrar sesión</button>
     </div>
   </aside>
 
   <div class="aviso" id="aviso" role="status" aria-live="polite"></div>
 
   <footer class="creditos">Desarrollado por Juan Moisés Gómez Aispuro · 2026</footer>
-  <script src="js/config.js?v=2"></script>
-  <script src="js/app.js?v=2"></script>
+  <script src="assets/js/config.js?v=3"></script>
+  <script src="assets/js/app.js?v=3"></script>
 </body>
 </html>
