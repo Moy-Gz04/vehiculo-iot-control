@@ -171,3 +171,11 @@ body:not([data-login="form"]) .login-form { display: none; }
   .adm-dos { display: grid; grid-template-columns: 300px 1fr; gap: 18px; align-items: start; }
 }
 @media (prefers-reduced-motion: reduce) { .adm-tab, .btn-contorno { transition: none; } }
+
+/* Celular: las tres pestañas caben en una sola fila (sin desbordar) */
+@media (max-width: 575.98px) {
+  .nav-vistas { width: 100%; }
+  .nav-vista { flex: 1 1 0; min-width: 0; padding: 6px 4px; gap: 5px; font-size: 10px; letter-spacing: .06em; }
+  .nav-vista span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav-vista svg { flex-shrink: 0; width: 16px; height: 16px; }
+}
