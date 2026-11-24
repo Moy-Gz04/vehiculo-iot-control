@@ -1,0 +1,173 @@
+/* =========================================================
+   Práctica 4.3 · Sesión, ADMINISTRACIÓN, Mis vehículos y Catálogo de invitado
+   Mobile First con la misma paleta de CONTROL/MONITOREO (negro, plata, azul rey).
+   ========================================================= */
+
+/* ---------- Vistas: la tercera pantalla convive con las dos anteriores ---------- */
+.pantalla-admin { display: none; outline: none; }
+body[data-vista="admin"] .pantalla { display: none !important; }
+body[data-vista="admin"] .pantalla-admin { display: block; min-height: calc(100dvh - var(--alto-cab, 92px) - 50px); }
+
+/* Sin sesión: solo login y catálogo. Invitado: sin selector de control (usa RC). Comodidad visual; la seguridad está en FastAPI. */
+body[data-rol="PUBLICO"] [data-ir="control"],
+body[data-rol="PUBLICO"] [data-ir="monitoreo"] { display: none; }
+body[data-rol="PUBLICO"][data-vista="monitoreo"] .pantalla-monitoreo { display: none; }
+
+/* ---------- Login con formulario ---------- */
+.login-form { display: grid; gap: 6px; }
+body:not([data-login="form"]) .login-form { display: none; }
+.login-form label { font: 600 12.5px/1.2 var(--cuerpo); color: var(--negro-3); margin-top: 6px; }
+.login-form .form-control {
+  min-height: 46px; border-radius: 12px; border: 1px solid rgba(13, 17, 25, .25);
+  background: rgba(255, 255, 255, .85); color: var(--negro); font-size: 16px;
+}
+.login-form .form-control:focus { border-color: var(--azul); box-shadow: 0 0 0 3px rgba(34, 80, 217, .3); }
+.login-form .btn-azul { margin-top: 12px; justify-content: center; width: 100%; }
+.login-invitado { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid rgba(13, 17, 25, .15); text-align: center; font-size: 13px; color: var(--plata-4); }
+
+/* ---------- Botones comunes ---------- */
+.btn-contorno {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 16px;
+  border-radius: 12px; border: 1px solid rgba(91, 134, 255, .6); background: rgba(34, 80, 217, .08);
+  color: var(--azul-hielo); font: 700 13px/1 var(--cuerpo); text-decoration: none; cursor: pointer;
+}
+.login-invitado .btn-contorno { color: var(--azul-oscuro); background: rgba(34, 80, 217, .1); border-color: rgba(34, 80, 217, .45); }
+.btn-contorno:hover { background: rgba(34, 80, 217, .2); color: #fff; }
+.login-invitado .btn-contorno:hover { color: var(--azul-oscuro); background: rgba(34, 80, 217, .2); }
+.btn-peligro { border-color: rgba(229, 56, 59, .6); color: #FF9C9E; background: rgba(229, 56, 59, .08); }
+.btn-peligro:hover { background: rgba(229, 56, 59, .22); color: #fff; }
+.btn-chico { min-height: 36px; padding: 6px 11px; font-size: 12.5px; border-radius: 10px; }
+:is(.btn-contorno, .btn-azul, .btn-salir, .adm-tab, .btn-cerrar):focus-visible { outline: 3px solid var(--azul-hielo); outline-offset: 2px; }
+
+/* ---------- Chip de sesión y aviso de prueba en la cabecera ---------- */
+.sesion-chip, .banner-prueba {
+  display: inline-flex; align-items: center; gap: 10px; padding: 4px 4px 4px 12px; border-radius: 14px;
+  background: var(--negro-2); border: 1px solid rgba(201, 206, 215, .16);
+}
+.sesion-quien { display: grid; line-height: 1.1; }
+.sesion-quien b { font: 600 12.5px var(--cuerpo); color: var(--plata-1); max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sesion-quien small { font: 700 10px var(--display); letter-spacing: .14em; color: var(--azul-hielo); text-transform: uppercase; }
+.btn-salir {
+  min-height: 36px; padding: 6px 12px; border-radius: 10px; border: 1px solid rgba(201, 206, 215, .25);
+  background: rgba(255, 255, 255, .04); color: var(--plata-2); font: 700 12px var(--cuerpo); cursor: pointer;
+}
+.btn-salir:hover { color: #fff; background: rgba(255, 255, 255, .1); }
+.banner-prueba { border-color: rgba(242, 184, 75, .5); background: rgba(242, 184, 75, .08); color: #F6CE80; font: 600 12.5px var(--cuerpo); }
+.banner-prueba b { font: 700 15px var(--mono); color: #fff; min-width: 5ch; }
+.banner-prueba[data-poco] { border-color: rgba(229, 56, 59, .7); background: rgba(229, 56, 59, .12); }
+
+/* ---------- Pestañas internas ---------- */
+.adm-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 18px; }
+.adm-tab {
+  min-height: 42px; padding: 8px 14px; border-radius: 12px; border: 1px solid rgba(201, 206, 215, .16);
+  background: var(--negro-2); color: var(--plata-2); font: 700 11.5px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+}
+.adm-tab:hover { color: #fff; }
+.adm-tab[aria-selected="true"] { color: #fff; background: linear-gradient(180deg, var(--azul-claro), var(--azul) 60%, var(--azul-oscuro)); border-color: transparent; }
+
+/* ---------- Métricas del Dashboard ---------- */
+.adm-metricas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.adm-metrica { padding: 14px; border-radius: 16px; background: rgba(0, 0, 0, .28); border: 1px solid rgba(201, 206, 215, .1); }
+.adm-metrica b { display: block; font: 800 26px/1 var(--display); color: #fff; }
+.adm-metrica span { display: block; margin-top: 6px; font-size: 12.5px; color: var(--plata-3); }
+.adm-metrica.acento b { color: var(--azul-hielo); }
+
+/* ---------- Barra de filtros y tablas ---------- */
+.adm-barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin-bottom: 12px; }
+.adm-barra label { display: grid; gap: 4px; font: 600 11.5px var(--cuerpo); color: var(--plata-3); flex: 1 1 150px; }
+.adm-barra .acciones { display: flex; gap: 8px; margin-left: auto; }
+.adm .form-control, .adm .form-select, .adm-dialogo .form-control, .adm-dialogo .form-select {
+  min-height: 42px; background-color: var(--negro-2); border-color: rgba(201, 206, 215, .25); color: var(--blanco);
+}
+.adm .form-control:focus, .adm .form-select:focus, .adm-dialogo .form-control:focus, .adm-dialogo .form-select:focus {
+  border-color: var(--azul-claro); box-shadow: 0 0 0 3px rgba(91, 134, 255, .3); background-color: var(--negro-2); color: #fff;
+}
+.adm .form-control::placeholder, .adm-dialogo .form-control::placeholder { color: var(--plata-4); }
+.adm-tabla { --bs-table-bg: transparent; --bs-table-color: var(--plata-1); --bs-table-border-color: rgba(201, 206, 215, .1); margin: 0; font-size: 13.5px; }
+.adm-tabla th { font: 700 10.5px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--plata-3); white-space: nowrap; }
+.adm-tabla td { vertical-align: middle; }
+.adm-tabla .mono { font-family: var(--mono); font-size: 12.5px; }
+.adm-tabla .acciones { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.adm-vacio { padding: 22px; text-align: center; color: var(--plata-3); }
+.adm-paginas { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; font-size: 12.5px; color: var(--plata-3); }
+
+/* Estado comercial */
+.estado-c { display: inline-block; padding: 3px 9px; border-radius: 999px; font: 700 10.5px var(--mono); letter-spacing: .04em; border: 1px solid; }
+.estado-c.DISPONIBLE { color: #8BE8B5; border-color: rgba(52, 199, 123, .45); background: rgba(52, 199, 123, .1); }
+.estado-c.VENDIDA { color: var(--azul-hielo); border-color: rgba(91, 134, 255, .45); background: rgba(91, 134, 255, .12); }
+.estado-c.EXHIBICION { color: #F6CE80; border-color: rgba(242, 184, 75, .5); background: rgba(242, 184, 75, .12); }
+.estado-c.INACTIVA { color: var(--plata-3); border-color: rgba(201, 206, 215, .3); background: rgba(201, 206, 215, .06); }
+.etiqueta { display: inline-block; padding: 2px 8px; margin: 2px; border-radius: 8px; font: 600 11.5px var(--mono); background: rgba(255, 255, 255, .06); color: var(--plata-2); }
+.etiqueta.si { background: rgba(242, 184, 75, .14); color: #F6CE80; }
+
+/* ---------- Tarjetas (catálogo, mis vehículos, modelos) ---------- */
+.adm-tarjetas { display: grid; gap: 12px; grid-template-columns: 1fr; }
+.adm-tarjeta { display: grid; gap: 10px; align-content: start; }
+.adm-tarjeta h3 { margin: 0; font: 700 16px/1.2 var(--display); letter-spacing: .04em; color: #fff; }
+.adm-tarjeta p { margin: 0; color: var(--plata-2); font-size: 13.5px; }
+.adm-tarjeta .pie { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; }
+.adm-tarjeta .dato { font: 600 12px var(--mono); color: var(--plata-3); }
+
+/* ---------- Editor de DEMO ---------- */
+.editor { display: grid; gap: 14px; }
+.editor-pasos { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; counter-reset: paso; }
+.paso {
+  display: grid; grid-template-columns: 34px 1fr; gap: 8px 10px; align-items: center; padding: 10px; border-radius: 14px;
+  background: rgba(0, 0, 0, .28); border: 1px solid rgba(201, 206, 215, .1);
+}
+.paso .num { grid-row: span 2; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--azul); color: #fff; font: 800 13px var(--display); }
+.paso .campos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.paso .campos label { display: grid; gap: 3px; font: 600 11px var(--cuerpo); color: var(--plata-3); }
+.paso .campos label:first-child { grid-column: 1 / -1; }
+.paso .mover { display: flex; gap: 6px; justify-content: flex-end; grid-column: 2; }
+.paso .mover button { min-width: 44px; min-height: 40px; }
+.editor-total { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font: 600 13px var(--mono); color: var(--plata-2); }
+.editor-total b { color: #fff; }
+.editor-total .mal { color: #FF9C9E; }
+.editor-acciones { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.lista-demos { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.lista-demos button { width: 100%; text-align: left; display: flex; justify-content: space-between; gap: 8px; }
+.lista-demos button[aria-current="true"] { border-color: var(--azul-claro); color: #fff; background: rgba(34, 80, 217, .25); }
+.demo-tipo { margin-left: 6px; padding: 1px 7px; border-radius: 6px; font: 700 10px var(--mono); background: rgba(255, 255, 255, .08); color: var(--plata-2); vertical-align: middle; }
+
+/* ---------- Diálogo de formularios (sin barra deslizante: contenido corto) ---------- */
+.adm-dialogo {
+  width: min(520px, calc(100vw - 24px)); padding: 0; border: 1px solid rgba(201, 206, 215, .18); border-radius: 20px;
+  background: linear-gradient(170deg, var(--negro-3), var(--negro-2)); color: var(--plata-1); box-shadow: 0 30px 80px rgba(0, 0, 0, .7);
+}
+.adm-dialogo::backdrop { background: rgba(0, 0, 0, .65); backdrop-filter: blur(3px); }
+.adm-dialogo form { display: grid; gap: 12px; padding: 18px; }
+.adm-dialogo header, .adm-dialogo footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.adm-dialogo footer { justify-content: flex-end; }
+.adm-dialogo h2 { margin: 0; font: 700 15px var(--display); letter-spacing: .08em; text-transform: uppercase; }
+.adm-dialogo-cuerpo { display: grid; gap: 10px; }
+.adm-dialogo-cuerpo label { display: grid; gap: 4px; font: 600 12px var(--cuerpo); color: var(--plata-3); }
+.adm-dialogo-cuerpo .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.adm-dialogo-cuerpo .check { display: flex; align-items: center; gap: 8px; color: var(--plata-2); }
+.adm-dialogo-cuerpo .check input { width: 20px; height: 20px; }
+.adm-dialogo-cuerpo .nota { margin: 0; font-size: 12.5px; color: var(--plata-3); }
+.adm-dialogo-cuerpo .secreto { padding: 12px; border-radius: 12px; background: rgba(242, 184, 75, .12); border: 1px solid rgba(242, 184, 75, .45); font: 700 16px var(--mono); color: #fff; text-align: center; user-select: all; }
+.btn-cerrar { min-width: 40px; min-height: 40px; border-radius: 10px; border: 0; background: rgba(255, 255, 255, .06); color: var(--plata-2); cursor: pointer; }
+.adm-error { margin: 0; color: #FF9C9E; font-size: 13px; font-weight: 600; }
+.adm-error:empty { display: none; }
+.caps-tabla input[type="number"] { width: 96px; }
+.caps-tabla input[type="checkbox"] { width: 20px; height: 20px; }
+
+/* ---------- Tableta y escritorio ---------- */
+@media (min-width: 576px) {
+  .adm-metricas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .paso { grid-template-columns: 34px 1fr auto; }
+  .paso .num { grid-row: auto; }
+  .paso .campos { grid-template-columns: 2fr 1fr 1fr; }
+  .paso .campos label:first-child { grid-column: auto; }
+  .paso .mover { grid-column: auto; }
+}
+@media (min-width: 768px) {
+  .adm-tarjetas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 992px) {
+  .adm-metricas { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .adm-tarjetas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .adm-dos { display: grid; grid-template-columns: 300px 1fr; gap: 18px; align-items: start; }
+}
+@media (prefers-reduced-motion: reduce) { .adm-tab, .btn-contorno { transition: none; } }

@@ -189,3 +189,23 @@ La API de AWS solo acepta el origen de GitHub Pages; para probar en local hay do
 
 ---
 Desarrollado por Juan Moisés Gómez Aispuro · 2026
+
+---
+
+## Práctica 4.3 · ADMINISTRACIÓN (tercer módulo del mismo frontend)
+
+Navegación `CONTROL | MONITOREO | ADMINISTRACIÓN` en el mismo documento (`#/control`, `#/monitoreo`, `#/admin`), mismo favicon, estilos y créditos.
+
+| Módulo | Archivo |
+|---|---|
+| Sesión (token temporal en `sessionStorage`, nunca la X-API-Key) | `assets/js/servicios/sesion.js` |
+| Cliente REST con `Authorization: Bearer` y cierre de sesión ante 401 | `assets/js/servicios/api.js` |
+| WSS único con `?token=`, sin reintentos ante 4401/4403 | `assets/js/servicios/socket.js` |
+| Administración por rol: Dashboard, Unidades, Modelos/capacidades, Clientes, Auditoría, Mis vehículos, Catálogo | `assets/js/vistas/administracion.js` |
+| Editor visual de DEMO (agregar, quitar, reordenar, duración total) | `assets/js/vistas/editor-demos.js` |
+| Prueba de invitado (tiempo restante, latido, terminar) | `assets/js/vistas/invitado.js` |
+| Estilos Mobile First | `assets/css/admin.css` |
+
+Menú por rol: **Administrador** → Administración; **Comprador** → Mis vehículos y Mis DEMO; **Invitado / sin sesión** → Catálogo y prueba de 5 min.
+Ocultar menús es solo comodidad: FastAPI y el WSS autorizan cada unidad (ver README del repositorio `vehiculo-iot-api`).
+Ningún dato es simulado: si algo no se puede verificar se muestra «Sin datos» / «Sin verificar» (el dispositivo físico siempre aparece «Sin verificar»).

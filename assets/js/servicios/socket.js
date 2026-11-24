@@ -1,5 +1,7 @@
 // Cliente WebSocket (WSS) ÚNICO y compartido por CONTROL y MONITOREO.
 // - Una sola conexión por pestaña hacia wss://<api>/ws/vehiculos/{id}; cambiar de vista NO abre otra.
+// - 4.3: la URL lleva ?token= de la sesión; el servidor cierra con 4401 (sin sesión) o 4403 (sin permiso o permiso
+//   revocado, p. ej. al reasignar la unidad). En esos casos NO se reintenta: se avisa y se espera otra acción.
 // - Estados: conectando · en_linea · reconectando · desconectado (el indicador depende de la conexión real).
 // - Reconexión con espera progresiva (0.4 s, 0.8 s, 1.6 s… hasta 8 s) y aviso de "reconectado" para resincronizar por REST.
 // - «En línea» = el NAVEGADOR está conectado al servidor WSS; NO prueba que el vehículo físico esté conectado.
@@ -8,6 +10,7 @@ import { rutas } from './api.js';
 const oyentesMensaje = new Set();
 const oyentesEstado = new Set();
 const oyentesApertura = new Set();
+const oyentesRechazo = new Set();
 
 let ws = null;
 let idVehiculo = null;
@@ -54,6 +57,13 @@ function abrir() {
   s.onclose = (ev) => {
     if (ws !== s) return;
     clearInterval(ping);
+    // 4401/4403: sin sesión o sin permiso sobre la unidad -> no se insiste (se avisa a quien escuche)
+    if (ev.code === 4401 || ev.code === 4403) {
+      ws = null;
+      fijar('desconectado', ev.code === 4401 ? 'Sesión vencida: el servidor cerró el canal WSS' : 'Sin permiso sobre esta unidad: el servidor cerró el canal WSS');
+      oyentesRechazo.forEach((f) => { try { f(ev.code, v); } catch (e) { console.error(e); } });
+      return;
+    }
     // 4404: el vehículo no existe -> no tiene caso insistir rápido
     const espera = ev.code === 4404 ? 15000 : Math.min(8000, 400 * 2 ** intento);
     intento++;
@@ -74,6 +84,16 @@ export function forzarReconexion() {
   if (!ws) { abrir(); return; }
   try { ws.close(4000, 'prueba de reconexion'); } catch { /* ya cerrado */ }
 }
+
+/** Cierra el canal y deja de reconectar (logout o sin vehículo). */
+export function desconectar(motivo = 'Sin sesión') {
+  idVehiculo = null; intento = 0; aperturas = 0;
+  cerrarActual();
+  fijar('desconectado', motivo);
+}
+
+/** f(codigo, idVehiculo) cuando el servidor rechaza el canal (4401 / 4403). */
+export function alRechazo(f) { oyentesRechazo.add(f); return () => oyentesRechazo.delete(f); }
 
 export const abierto = () => !!ws && ws.readyState === 1;
 export const estadoActual = () => estado;

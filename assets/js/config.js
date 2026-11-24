@@ -1,8 +1,8 @@
-// Configuración compartida por CONTROL y MONITOREO (un solo lugar para API, WSS y vehículo).
-// No contiene credenciales de AWS ni de RDS: esas viven solo en el servidor.
+// Configuración compartida por CONTROL, MONITOREO y ADMINISTRACIÓN (un solo lugar para API, WSS y tiempos).
+// 4.3: ya NO contiene la X-API-Key. Cada persona inicia sesión y el navegador solo guarda su token temporal
+// (sessionStorage). Credenciales de AWS, RDS y la clave de servicio viven únicamente en el servidor.
 export const CONFIG = Object.freeze({
   API_BASE: 'https://13-218-5-111.sslip.io',   // API FastAPI en AWS (HTTPS); el WebSocket usa wss:// del mismo host
-  API_KEY: 'iot-ec2-2026',                      // X-API-Key de CONTROL (pública a propósito, ver README · Seguridad)
   ORIGEN: 'WEB-CONTROL',                        // nombre con el que se registran los movimientos
   SALUD_API: '/salud',                          // disponibilidad del servidor de AWS
   SALUD_RDS: '/salud/rds',                      // diagnóstico seguro de Amazon RDS (lo ejecuta el backend)

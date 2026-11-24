@@ -1,4 +1,4 @@
-// Vista CONTROL (práctica 4.1, conservada): entrada automática (sin login), selector de control y modos de manejo.
+// Vista CONTROL (práctica 4.1, conservada). 4.3: entra con sesión (login o prueba de invitado), sin X-API-Key en el navegador.
 //  - RC Clásico (pulso): un toque -> modo "continuo" (sigue hasta la siguiente orden o ALTO)
 //  - Gamepad (mantener): presionar -> modo "mantener" + aviso /mantener cada 250 ms; soltar -> /soltar
 //  - Joystick: un comando solo al cambiar de dirección; al soltar -> DETENER
@@ -8,7 +8,8 @@
 import { CONFIG } from '../config.js';
 import { get, post, rutas } from '../servicios/api.js';
 import * as socket from '../servicios/socket.js';
-import { idVehiculo, cargarVehiculos, alCambiarVehiculo } from '../estado/vehiculo.js';
+import * as sesion from '../servicios/sesion.js';
+import { idVehiculo, cargarVehiculos, alCambiarVehiculo, SinVehiculos } from '../estado/vehiculo.js';
 import { vistaActual, alCambiarVista } from './navegacion.js';
 import { $, $$, esc, bonito, guardado, esMovil, vibrar, dormir, aviso } from '../utilidades/dom.js';
 import { aFecha, horaCorta } from '../utilidades/fechas.js';
@@ -24,7 +25,6 @@ export function iniciarControl() {
     demoAleatoria: false,   // la demo infinita del ESP está corriendo
     esperas: [],
   };
-  const clave = () => CONFIG.API_KEY || '';
   const origen = () => CONFIG.ORIGEN || 'WEB-CONTROL';
   const hora = (iso) => horaCorta(iso ? aFecha(iso) : new Date());
   const enControl = () => vistaActual() !== 'monitoreo' && B.dataset.pantalla === 'control';
@@ -32,21 +32,44 @@ export function iniciarControl() {
   // ---------- Pantallas ----------
   function ir(p) { B.dataset.pantalla = p; if (vistaActual() !== 'monitoreo') window.scrollTo(0, 0); }
 
-  // ---------- CONEXIÓN (sin login: la X-API-Key viene de config.js) ----------
-  // Entra sola al abrir la página; si el servidor no responde o rechaza la clave, muestra el motivo y "Reintentar".
+  // ---------- SESIÓN (4.3: login real; ya no hay X-API-Key en el navegador) ----------
+  // Sin sesión se muestra el formulario. Con sesión se cargan SOLO las unidades que el servidor permite.
+  function mostrarLogin(mensaje = '') {
+    soltarSostenido(); joySoltar(false); cerrarHoja();
+    B.dataset.login = 'form';
+    $('#login-estado').textContent = 'Inicia sesión para controlar tus vehículos';
+    $('#login-error').textContent = mensaje; $('#login-reintentar').hidden = true;
+    $('#login-form').reset?.();
+    ir('login');
+  }
+  $('#login-form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const f = ev.currentTarget, b = f.querySelector('button[type="submit"]');
+    if (!f.reportValidity()) return;
+    b.disabled = true; $('#login-error').textContent = '';
+    try {
+      const r = await post(rutas.login(), { correo: f.correo.value.trim(), password: f.password.value }, { sinSesion: true });
+      f.password.value = '';
+      sesion.abrir(r);                                // app.js escucha el cambio y llama a entrar()
+    } catch (e) {
+      $('#login-error').textContent = e.status === 401 ? 'Correo o contraseña incorrectos.'
+        : e.status === 429 ? e.message : `No se pudo iniciar sesión: ${e.message}`;
+    } finally { b.disabled = false; }
+  });
+
   async function entrar() {
-    $('#login-estado').textContent = 'Conectando con el servidor…';
+    if (!sesion.token()) { mostrarLogin(); return; }
+    B.dataset.login = 'cargando';
+    $('#login-estado').textContent = 'Cargando tus vehículos…';
     $('#login-error').textContent = ''; $('#login-reintentar').hidden = true;
     ir('login');
     try {
       await cargarVehiculos();                        // compartido con MONITOREO; abre el único WebSocket
-      await post(rutas.aviso(st.idV, 'soltar'));      // valida la clave sin mover nada
-      const c = guardado('ctl.control');
+      const c = sesion.rol() === 'INVITADO' ? 'rc' : guardado('ctl.control');
       if (c) await usarControl(c); else ir('selector');
     } catch (e) {
-      sinConexion(e.status === 401 || e.status === 403
-        ? 'El servidor rechazó la X-API-Key configurada en assets/js/config.js.'
-        : `No se pudo conectar: ${e.message}`);
+      if (e instanceof SinVehiculos) sinConexion(`${e.message} Pide a la empresa que te asigne una unidad.`);
+      else if (e.status !== 401) sinConexion(`No se pudo conectar: ${e.message}`);
     }
   }
   function sinConexion(motivo) {
@@ -108,7 +131,7 @@ export function iniciarControl() {
     const c = st.comandos.get(nombre); if (!c) return null;
     // Por el WebSocket ya abierto: sin el costo de una petición HTTPS, la orden llega antes al vehículo.
     // Resuelve cuando vuelve el evento "movimiento" (o a los 3 s), para que el "soltar" del gamepad vaya después.
-    if (socket.enviar({ accion: 'mover', clave: clave(), id_comando: c.id_comando, origen: origen(), modo })) {
+    if (socket.enviar({ accion: 'mover', id_comando: c.id_comando, origen: origen(), modo })) {
       return new Promise(ok => {
         const fin = (m) => { clearTimeout(t); st.esperas = st.esperas.filter(f => f !== fin); ok(m); };
         const t = setTimeout(() => fin(null), 3000);
@@ -120,8 +143,7 @@ export function iniciarControl() {
       pintarEstado(r.estado);
       return r;
     } catch (e) {
-      if (e.status === 401 || e.status === 403) sinConexion('El servidor rechazó la X-API-Key configurada en assets/js/config.js.');
-      else aviso(e.message, true);
+      if (e.status !== 401) aviso(e.message, true);   // 401 = sesión vencida: app.js vuelve al login
       return null;
     }
   }
@@ -140,7 +162,7 @@ export function iniciarControl() {
 
   // Aviso rápido por el WebSocket abierto (si no está abierto, por HTTP)
   function avisoRapido(accion) {
-    if (socket.enviar({ accion, clave: clave() })) return;
+    if (socket.enviar({ accion })) return;
     post(rutas.aviso(st.idV, accion)).catch(() => {});
   }
 
@@ -267,7 +289,7 @@ export function iniciarControl() {
     }));
     ul.innerHTML = st.demos.map(d => {
       const movs = st.movsDemo.get(d.id_demo) || []; const ms = movs.reduce((s, m) => s + m.duracion_ms + m.pausa_ms, 0);
-      return `<li class="demo"><strong>${esc(d.nombre)}</strong>${d.descripcion ? `<p>${esc(d.descripcion)}</p>` : ''}
+      return `<li class="demo"><strong>${esc(d.nombre)} <span class="demo-tipo">${d.tipo === 'PRIVADA' ? 'Mía' : 'Fábrica'}</span></strong>${d.descripcion ? `<p>${esc(d.descripcion)}</p>` : ''}
         <span class="meta">${movs.length} movimientos · ${(ms / 1000).toFixed(1)} s</span>
         <button type="button" class="btn-azul" data-demo="${d.id_demo}" ${d.activo && movs.length && !st.demoEnCurso ? '' : 'disabled'}>Iniciar</button></li>`;
     }).join('');
@@ -656,7 +678,10 @@ export function iniciarControl() {
 
   // ---------- Inicio ----------
   B.dataset.orient = guardado('ctl.orient') || (esMovil() && innerHeight > innerWidth ? 'v' : 'h');
-  guardado('ctl.apikey', null); guardado('ctl.origen', null);   // restos de la versión con login
-  entrar();
-  return { entrar };
+  guardado('ctl.apikey', null); guardado('ctl.origen', null);   // restos de versiones anteriores
+  // 4.3: si el servidor revoca el canal (reasignación, baja o fin de la prueba) se avisa y se recargan las unidades
+  socket.alRechazo((codigo) => {
+    if (codigo === 4403 && sesion.token()) { aviso('Ya no tienes permiso sobre esa unidad', true); entrar(); }
+  });
+  return { entrar, mostrarLogin };
 }
