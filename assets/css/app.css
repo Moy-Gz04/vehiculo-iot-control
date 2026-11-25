@@ -816,10 +816,10 @@ body[data-control="joy"] .funcion { background: linear-gradient(180deg, var(--pl
   body[data-pantalla="control"] { height: 100dvh; overflow: hidden; }
   body[data-pantalla="control"] #pantalla-control { min-height: 0; padding: 0; }
   body[data-pantalla="control"] .escena { min-height: 0; gap: 8px; padding: 10px 24px 6px; }
-  body[data-pantalla="control"] .remoto { zoom: .82; margin-top: 30px !important; }
+  body[data-pantalla="control"] .remoto { zoom: 1; margin-top: 30px !important; }
   body[data-pantalla="control"] .ayuda { font-size: 12px; }
 }
-@media (min-width: 901px) and (min-height: 501px) and (max-height: 900px) { body[data-pantalla="control"] .remoto { zoom: .74; } }
-@media (min-width: 901px) and (min-height: 501px) and (max-height: 780px) { body[data-pantalla="control"] .remoto { zoom: .64; margin-top: 22px !important; } }
-@media (min-width: 901px) and (min-height: 501px) and (max-height: 700px) { body[data-pantalla="control"] .remoto { zoom: .58; margin-top: 18px !important; } }
-@media (min-width: 901px) and (min-height: 501px) and (max-height: 620px) { body[data-pantalla="control"] .remoto { zoom: .5; } }
+@media (min-width: 901px) and (min-height: 501px) and (max-height: 900px) { body[data-pantalla="control"] .remoto { zoom: .92; } }
+@media (min-width: 901px) and (min-height: 501px) and (max-height: 780px) { body[data-pantalla="control"] .remoto { zoom: .84; margin-top: 22px !important; } }
+@media (min-width: 901px) and (min-height: 501px) and (max-height: 700px) { body[data-pantalla="control"] .remoto { zoom: .76; margin-top: 18px !important; } }
+@media (min-width: 901px) and (min-height: 501px) and (max-height: 620px) { body[data-pantalla="control"] .remoto { zoom: .64; } }
